@@ -24,7 +24,18 @@ def run_strategy():
     df = df.sort_values("date").reset_index(drop=True)
 
     # ===== 显式锁定 T-1（核心）=====
-    row = df.iloc[-2]
+    now = pd.Timestamp.now(tz="Asia/Shanghai")
+
+    # ETF 正式收盘时间（保守取 18:00）
+    market_close = now.normalize() + pd.Timedelta(hours=18)
+
+    if now >= market_close:
+        # 收盘后：允许用今天
+        row = df.iloc[-1]
+    else:
+        # 收盘前：只能用 T-1
+        row = df.iloc[-2]
+
 
     # ===== 2. 指数（日线）=====
     sh = ak.stock_zh_index_daily(symbol="sh000001")[["date", "close"]]
@@ -125,6 +136,7 @@ if __name__ == "__main__":
     result = run_strategy()
     with open("result.json", "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
+
 
 
 
