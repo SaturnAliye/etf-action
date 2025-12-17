@@ -1,6 +1,11 @@
 import json
+import os
 import smtplib
 from email.mime.text import MIMEText
+
+# 从 GitHub Secrets 读取
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASS = os.environ.get("SMTP_PASS")
 
 with open("result.json", "r", encoding="utf-8") as f:
     r = json.load(f)
@@ -23,11 +28,12 @@ html = f"""
 
 msg = MIMEText(html, "html", "utf-8")
 msg["Subject"] = "📊 创业板ETF T-1 决策日报"
-msg["From"] = "YOUR_EMAIL"
-msg["To"] = "TO_EMAIL"
-msg["Cc"] = "CC_EMAIL"
+msg["From"] = SMTP_USER
+msg["To"] = SMTP_USER  # 发给自己（之后可以改成别人）
 
 smtp = smtplib.SMTP_SSL("smtp.qq.com", 465)
-smtp.login("YOUR_EMAIL", "SMTP_AUTH_CODE")
+smtp.login(SMTP_USER, SMTP_PASS)
 smtp.send_message(msg)
 smtp.quit()
+
+
