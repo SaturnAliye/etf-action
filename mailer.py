@@ -1,7 +1,16 @@
 import json
+import os
 import smtplib
 from email.mime.text import MIMEText
 
+# 从 GitHub Actions Secrets 读取
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASS = os.environ.get("SMTP_PASS")
+
+if not SMTP_USER or not SMTP_PASS:
+    raise RuntimeError("SMTP_USER / SMTP_PASS 未设置")
+
+# 读取策略结果
 with open("result.json", "r", encoding="utf-8") as f:
     r = json.load(f)
 
@@ -23,14 +32,15 @@ html = f"""
 
 msg = MIMEText(html, "html", "utf-8")
 msg["Subject"] = "📊 创业板ETF T-1 决策日报"
-msg["From"] = "YOUR_EMAIL"
-msg["To"] = "TO_EMAIL"
-msg["Cc"] = "CC_EMAIL"
+msg["From"] = SMTP_USER
+msg["To"] = SMTP_USER   # 先发给自己，确认成功后可改
 
-smtp = smtplib.SMTP_SSL("smtp.qq.com", 465)
-smtp.login("YOUR_EMAIL", "SMTP_AUTH_CODE")
+# QQ 邮箱 SMTP
+smtp = smtplib.SMTP_SSL("smtp.qq.com", 465, timeout=20)
+smtp.login(SMTP_USER, SMTP_PASS)
 smtp.send_message(msg)
 smtp.quit()
+
 
 
 
