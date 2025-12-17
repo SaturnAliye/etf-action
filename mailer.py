@@ -1,3 +1,8 @@
+import os
+
+print("SMTP_USER =", os.environ.get("SMTP_USER"))
+print("SMTP_PASS =", "SET" if os.environ.get("SMTP_PASS") else None)
+
 import json
 import os
 import smtplib
@@ -40,6 +45,7 @@ smtp = smtplib.SMTP_SSL("smtp.qq.com", 465, timeout=20)
 smtp.login(SMTP_USER, SMTP_PASS)
 smtp.send_message(msg)
 smtp.quit()
+
 
 
 
