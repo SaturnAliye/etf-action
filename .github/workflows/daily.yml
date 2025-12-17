@@ -8,6 +8,12 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+
+    # 👇 关键就在这里：显式注入 Secrets
+    env:
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +26,7 @@ jobs:
       - run: |
           python main.py
           python mailer.py
+
 
 
 
