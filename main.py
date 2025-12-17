@@ -103,15 +103,20 @@ def run_strategy():
 
     return {
         "symbol": SYMBOL,
-        "data_date": r["date"].strftime("%Y-%m-%d"),
+
+        # ✅ 兼容 mailer.py 旧字段
+        "date": r["date"].strftime("%Y-%m-%d"),
+
+        # （可选）额外信息：预测日
         "predict_date": (r["date"] + pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+
         "close": round(r["close"], 3),
         "ATR_pct": round(r["ATR_pct"] * 100, 2),
         "BOLL_width": round(r["BOLL_width"], 2),
         "BOLL_pos": round(r["BOLL_pos"], 2),
         "MA20_slope": round(r["MA20_slope"], 4),
         "VolRatio": round(r["VolRatio"], 2),
-        "score": round(total_score, 1),
+        "score": round(float(total_score), 1),
         "decision": decision,
         "week_trend": week_trend
     }
@@ -120,6 +125,7 @@ if __name__ == "__main__":
     result = run_strategy()
     with open("result.json", "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
+
 
 
 
