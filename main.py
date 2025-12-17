@@ -1,33 +1,77 @@
+import akshare as ak
+import pandas as pd
+import numpy as np
 import json
-import smtplib
-from email.mime.text import MIMEText
 
-with open("result.json", "r", encoding="utf-8") as f:
-    r = json.load(f)
+ATR_MAX = 0.035
+BOLLW_MIN = 0.05
+BOLLW_MAX = 0.20
+BUY_SCORE = 70
+SYMBOL = "159915"
 
-html = f"""
-<h3>📊 创业板ETF（{r['symbol']}）T-1 决策</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-<tr><td>日期</td><td>{r['date']}</td></tr>
-<tr><td>收盘价</td><td>{r['close']}</td></tr>
-<tr><td>ATR%</td><td>{r['ATR_pct']}%</td></tr>
-<tr><td>BOLL宽度</td><td>{r['BOLL_width']}</td></tr>
-<tr><td>BOLL位置</td><td>{r['BOLL_pos']}</td></tr>
-<tr><td>MA20斜率</td><td>{r['MA20_slope']}</td></tr>
-<tr><td>量能比</td><td>{r['VolRatio']}</td></tr>
-<tr><td><b>明日评分</b></td><td><b>{r['score']}</b></td></tr>
-<tr><td><b>明日结论</b></td><td><b>{r['decision']}</b></td></tr>
-<tr><td><b>未来一周</b></td><td><b>{r['week_trend']}</b></td></tr>
-</table>
-"""
+def run_strategy():
+    df = ak.fund_etf_hist_em(symbol=SYMBOL, period="daily", adjust="")
+    df = df.rename(columns={
+        "日期": "date",
+        "最高": "high",
+        "最低": "low",
+        "收盘": "close",
+        "成交量": "volume"
+    })
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
 
-msg = MIMEText(html, "html", "utf-8")
-msg["Subject"] = "📊 创业板ETF T-1 决策日报"
-msg["From"] = "YOUR_EMAIL"
-msg["To"] = "TO_EMAIL"
-msg["Cc"] = "CC_EMAIL"
+    df["prev_close"] = df["close"].shift(1)
+    df["TR"] = np.maximum(
+        df["high"] - df["low"],
+        np.maximum(abs(df["high"] - df["prev_close"]),
+                   abs(df["low"] - df["prev_close"]))
+    )
+    df["ATR20"] = df["TR"].rolling(20).mean()
+    df["ATR_pct"] = df["ATR20"] / df["close"]
 
-smtp = smtplib.SMTP_SSL("smtp.qq.com", 465)
-smtp.login("YOUR_EMAIL", "SMTP_AUTH_CODE")
-smtp.send_message(msg)
-smtp.quit()
+    df["MA20"] = df["close"].rolling(20).mean()
+    df["MA20_slope"] = df["MA20"] - df["MA20"].shift(5)
+
+    df["STD20"] = df["close"].rolling(20).std()
+    df["UB"] = df["MA20"] + 2 * df["STD20"]
+    df["LB"] = df["MA20"] - 2 * df["STD20"]
+    df["BOLL_width"] = (df["UB"] - df["LB"]) / df["MA20"]
+    df["BOLL_pos"] = (df["close"] - df["LB"]) / (df["UB"] - df["LB"])
+
+    df["VolMA20"] = df["volume"].rolling(20).mean()
+    df["VolRatio"] = df["volume"] / df["VolMA20"]
+
+    r = df.iloc[-1]
+
+    score = 50
+    decision = "WATCH"
+    if (
+        r["ATR_pct"] <= ATR_MAX and
+        BOLLW_MIN <= r["BOLL_width"] <= BOLLW_MAX and
+        r["MA20_slope"] > 0
+    ):
+        score = 75
+        decision = "BUY"
+
+    return {
+        "symbol": SYMBOL,
+        "date": r["date"].strftime("%Y-%m-%d"),
+        "close": round(r["close"], 3),
+        "ATR_pct": round(r["ATR_pct"] * 100, 2),
+        "BOLL_width": round(r["BOLL_width"], 2),
+        "BOLL_pos": round(r["BOLL_pos"], 2),
+        "MA20_slope": round(r["MA20_slope"], 4),
+        "VolRatio": round(r["VolRatio"], 2),
+        "score": score,
+        "decision": decision,
+        "week_trend": "UP" if r["MA20_slope"] > 0 else "SIDE"
+    }
+
+if __name__ == "__main__":
+    result = run_strategy()
+    with open("result.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+
+    print("result.json written")
+
