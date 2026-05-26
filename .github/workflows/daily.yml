@@ -33,10 +33,17 @@ jobs:
           python main.py
           python build_page.py
 
+      - name: Package GitHub Pages artifact
+        run: |
+          tar --dereference --hard-dereference --directory site -cvf artifact.tar .
+
       - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          path: site
+          name: github-pages
+          path: artifact.tar
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
     environment:
